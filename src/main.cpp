@@ -26,8 +26,18 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
+int main(int argc, char* argv[] )
 {
+  // open output file
+  ofstream outfile;
+  string outName;
+  if (argc==2){
+    outfile.open(argv[1]);
+    if (!outfile.is_open()){
+      cout<<"Cannot open outfile"<<endl;
+    }
+  }
+
   uWS::Hub h;
 
   // Create a Kalman Filter instance
@@ -38,7 +48,7 @@ int main()
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
 
-  h.onMessage([&fusionEKF,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&fusionEKF,&tools,&estimations,&ground_truth, &outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -91,40 +101,40 @@ int main()
           		meas_package.timestamp_ = timestamp;
           }
           float x_gt;
-    	  float y_gt;
-    	  float vx_gt;
-    	  float vy_gt;
-    	  iss >> x_gt;
-    	  iss >> y_gt;
-    	  iss >> vx_gt;
-    	  iss >> vy_gt;
-    	  VectorXd gt_values(4);
-    	  gt_values(0) = x_gt;
-    	  gt_values(1) = y_gt; 
-    	  gt_values(2) = vx_gt;
-    	  gt_values(3) = vy_gt;
-    	  ground_truth.push_back(gt_values);
+    	    float y_gt;
+    	    float vx_gt;
+    	    float vy_gt;
+    	    iss >> x_gt;
+    	    iss >> y_gt;
+    	    iss >> vx_gt;
+    	    iss >> vy_gt;
+    	    VectorXd gt_values(4);
+    	    gt_values(0) = x_gt;
+    	    gt_values(1) = y_gt; 
+    	    gt_values(2) = vx_gt;
+    	    gt_values(3) = vy_gt;
+    	    ground_truth.push_back(gt_values);
           
           //Call ProcessMeasurment(meas_package) for Kalman filter
-    	  fusionEKF.ProcessMeasurement(meas_package);    	  
+    	    fusionEKF.ProcessMeasurement(meas_package);    	  
 
-    	  //Push the current estimated x,y positon from the Kalman filter's state vector
+    	    //Push the current estimated x,y positon from the Kalman filter's state vector
 
-    	  VectorXd estimate(4);
+    	    VectorXd estimate(4);
 
-    	  double p_x = fusionEKF.ekf_.x_(0);
-    	  double p_y = fusionEKF.ekf_.x_(1);
-    	  double v1  = fusionEKF.ekf_.x_(2);
-    	  double v2 = fusionEKF.ekf_.x_(3);
+    	    double p_x = fusionEKF.ekf_.x_(0);
+    	    double p_y = fusionEKF.ekf_.x_(1);
+    	    double v1  = fusionEKF.ekf_.x_(2);
+    	    double v2 = fusionEKF.ekf_.x_(3);
 
-    	  estimate(0) = p_x;
-    	  estimate(1) = p_y;
-    	  estimate(2) = v1;
-    	  estimate(3) = v2;
+    	    estimate(0) = p_x;
+    	    estimate(1) = p_y;
+    	    estimate(2) = v1;
+    	    estimate(3) = v2;
     	  
-    	  estimations.push_back(estimate);
-
-    	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
+    	    estimations.push_back(estimate);
+    	    //cout<<" size of estimations "<<estimations.size()<<endl;
+          VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
           json msgJson;
           msgJson["estimate_x"] = p_x;
@@ -134,17 +144,22 @@ int main()
           msgJson["rmse_vx"] = RMSE(2);
           msgJson["rmse_vy"] = RMSE(3);
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
-          // std::cout << msg << std::endl;
+          //if (RMSE(0) > 0.11 || RMSE(1) > 0.11 || RMSE(2) > 0.52 || RMSE(3) >0.52 ){
+          //  cout<<"High RMSE !!!" <<RMSE(0) << " " << RMSE(1)<< " " << RMSE(2) << " " << RMSE(3) << endl;
+          //}
+          if (outfile.is_open()){
+            outfile<< p_x << " " << p_y << " " << RMSE(0) << " " << RMSE(1)<< " " << RMSE(2) << " " << RMSE(3) <<endl;
+          }
+          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 	  
         }
-      } else {
-        
+      } 
+      else {
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
-
   });
 
   // We don't need this since we're not using HTTP but if it's removed the program
@@ -182,4 +197,7 @@ int main()
     return -1;
   }
   h.run();
+  if (outfile.is_open()){
+    outfile.close();
+  }
 }
