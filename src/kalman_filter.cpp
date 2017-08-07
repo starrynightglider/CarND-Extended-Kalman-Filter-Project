@@ -9,39 +9,61 @@ KalmanFilter::KalmanFilter() {}
 
 KalmanFilter::~KalmanFilter() {}
 
-void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
-                        MatrixXd &H_in, MatrixXd &R_in, MatrixXd &Q_in) {
-  x_ = x_in;
-  P_ = P_in;
-  F_ = F_in;
-  H_ = H_in;
-  R_ = R_in;
-  Q_ = Q_in;
+void KalmanFilter::Init(const VectorXd &x, const MatrixXd &P, 
+                        const MatrixXd &lidar_H,
+                        const MatrixXd &lidar_R, const MatrixXd &radar_R) {
+  x_ = x;
+  P_ = P;
+  lidar_H_ = lidar_H;
+  lidar_R_ = lidar_R;
+  radar_R_ = radar_R;
 }
 
-void KalmanFilter::Predict() {
-  x_ = F_ * x_;
-  MatrixXd Ft = F_.transpose();
-  P_ = F_ * P_ * Ft + Q_;
+void KalmanFilter::Predict(float dt) {
+ 
+  float dt_2 = dt * dt;
+  float dt_3 = dt_2 * dt;
+  float dt_4 = dt_3 * dt;
+  float noise_ax = 9, noise_ay = 9;
+  
+  // state transition matrix
+  MatrixXd F = MatrixXd(4,4);
+  F << 1, 0, dt, 0,
+       0, 1, 0, dt,
+       0, 0, 1, 0,
+       0, 0, 0, 1;
+  
+  // process covairance
+  MatrixXd Q = MatrixXd(4, 4);
+  Q <<  dt_4/4*noise_ax, 0, dt_3/2*noise_ax, 0,
+        0, dt_4/4*noise_ay, 0, dt_3/2*noise_ay,
+        dt_3/2*noise_ax, 0, dt_2*noise_ax, 0,
+        0, dt_3/2*noise_ay, 0, dt_2*noise_ay;
+  x_ = F * x_;
+  MatrixXd Ft = F.transpose();
+  P_ = F * P_ * Ft + Q;
 }
 
 void KalmanFilter::Update(const VectorXd &z) {
   
-  VectorXd z_pred = H_ * x_;
+  VectorXd z_pred = lidar_H_ * x_;
   VectorXd y = z - z_pred;
-  MatrixXd Ht = H_.transpose();
+  MatrixXd Ht = lidar_H_.transpose();
   MatrixXd PHt = P_ * Ht;
-  MatrixXd S = H_ * PHt + R_;
+  MatrixXd S = lidar_H_ * PHt + lidar_R_;
   MatrixXd Si = S.inverse();
   MatrixXd K = PHt * Si;
 
   x_ = x_ + (K * y);
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
-  P_ = (I - K * H_) * P_;
+  P_ = (I - K * lidar_H_) * P_;
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
+  
+  // Compute Jacobian
+  MatrixXd Hj = Tools::CalculateJacobian(x_);
 
   VectorXd x(3);
   // Convert to polar 
@@ -57,14 +79,14 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   while (y(1) > M_PI) y(1) -= (M_PI*2);
   while (y(1) < -M_PI) y(1) += (M_PI*2);
 
-  MatrixXd Ht = H_.transpose();
+  MatrixXd Ht = Hj.transpose();
   MatrixXd PHt = P_ * Ht;
-  MatrixXd S = H_ * PHt + R_;
+  MatrixXd S = Hj * PHt + radar_R_;
   MatrixXd Si = S.inverse();
   MatrixXd K = PHt * Si;
 
   x_ = x_ + (K * y);
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
-  P_ = (I - K * H_) * P_;
+  P_ = (I - K * Hj) * P_;
 }

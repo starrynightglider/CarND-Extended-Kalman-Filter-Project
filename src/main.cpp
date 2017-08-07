@@ -100,6 +100,7 @@ int main(int argc, char* argv[] )
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
           }
+
           float x_gt;
     	    float y_gt;
     	    float vx_gt;
@@ -119,40 +120,24 @@ int main(int argc, char* argv[] )
     	    fusionEKF.ProcessMeasurement(meas_package);    	  
 
     	    //Push the current estimated x,y positon from the Kalman filter's state vector
-
-    	    VectorXd estimate(4);
-
-    	    double p_x = fusionEKF.ekf_.x_(0);
-    	    double p_y = fusionEKF.ekf_.x_(1);
-    	    double v1  = fusionEKF.ekf_.x_(2);
-    	    double v2 = fusionEKF.ekf_.x_(3);
-
-    	    estimate(0) = p_x;
-    	    estimate(1) = p_y;
-    	    estimate(2) = v1;
-    	    estimate(3) = v2;
-    	  
+          VectorXd estimate = fusionEKF.GetX();
     	    estimations.push_back(estimate);
-    	    //cout<<" size of estimations "<<estimations.size()<<endl;
           VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
           json msgJson;
-          msgJson["estimate_x"] = p_x;
-          msgJson["estimate_y"] = p_y;
+          msgJson["estimate_x"] = estimate(0);
+          msgJson["estimate_y"] = estimate(1);
           msgJson["rmse_x"] =  RMSE(0);
           msgJson["rmse_y"] =  RMSE(1);
           msgJson["rmse_vx"] = RMSE(2);
           msgJson["rmse_vy"] = RMSE(3);
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
-          //if (RMSE(0) > 0.11 || RMSE(1) > 0.11 || RMSE(2) > 0.52 || RMSE(3) >0.52 ){
-          //  cout<<"High RMSE !!!" <<RMSE(0) << " " << RMSE(1)<< " " << RMSE(2) << " " << RMSE(3) << endl;
-          //}
+          
           if (outfile.is_open()){
-            outfile<< p_x << " " << p_y << " " << RMSE(0) << " " << RMSE(1)<< " " << RMSE(2) << " " << RMSE(3) <<endl;
+            outfile<< estimate(0) << " " << estimate(1) << " " << RMSE(0) << " " << RMSE(1)<< " " << RMSE(2) << " " << RMSE(3) <<endl;
           }
-          //std::cout << msg << std::endl;
+          
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  
         }
       } 
       else {
