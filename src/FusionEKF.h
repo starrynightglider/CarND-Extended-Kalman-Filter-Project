@@ -11,8 +11,12 @@
 
 class FusionEKF {
 public:
-  FusionEKF();
-  virtual ~FusionEKF();
+  FusionEKF(const MatrixXd & lidar_H, const MatrixXd & lidar_R, const MatrixXd & radar_R):
+  ekf_(lidar_H, lidar_R, radar_R),
+  is_initialized_(false),
+  previous_timestamp_(0){}
+
+  virtual ~FusionEKF(){};
 
   void ProcessMeasurement(const MeasurementPackage &measurement_pack);
   Eigen::VectorXd GetX() { return ekf_.GetX();}
@@ -23,9 +27,6 @@ private:
   bool is_initialized_;
   long long previous_timestamp_;
   KalmanFilter ekf_;
-  Eigen::MatrixXd lidar_H_;
-  Eigen::MatrixXd lidar_R_;
-  Eigen::MatrixXd radar_R_;
 };
 
 #endif /* FusionEKF_H_ */

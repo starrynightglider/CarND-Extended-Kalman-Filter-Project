@@ -5,26 +5,12 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-KalmanFilter::KalmanFilter() {}
-
-KalmanFilter::~KalmanFilter() {}
-
-void KalmanFilter::Init(const VectorXd &x, const MatrixXd &P, 
-                        const MatrixXd &lidar_H,
-                        const MatrixXd &lidar_R, const MatrixXd &radar_R) {
-  x_ = x;
-  P_ = P;
-  lidar_H_ = lidar_H;
-  lidar_R_ = lidar_R;
-  radar_R_ = radar_R;
-}
-
 void KalmanFilter::Predict(float dt) {
  
   float dt_2 = dt * dt;
   float dt_3 = dt_2 * dt;
   float dt_4 = dt_3 * dt;
-  float noise_ax = 9, noise_ay = 9;
+  const float noise_ax = 9, noise_ay = 9;
   
   // state transition matrix
   MatrixXd F = MatrixXd(4,4);

@@ -8,39 +8,12 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
 
-FusionEKF::FusionEKF() {
-  is_initialized_ = false;
-  previous_timestamp_ = 0;
-
-  // initializing matrices
-  lidar_H_ = MatrixXd(2, 4);
-  lidar_R_ = MatrixXd(2, 2);
-  radar_R_ = MatrixXd(3, 3);
-
-  // state transition of lidar
-  lidar_H_ << 1, 0, 0, 0,
-              0, 1, 0, 0;
-  
-  //measurement covariance matrix - lidar
-  lidar_R_ << 0.0225, 0,
-              0, 0.0225;
-
-  //measurement covariance matrix - radar
-  radar_R_ << 0.09, 0, 0,
-              0, 0.0009, 0,
-              0, 0, 0.09;
-}
-
-FusionEKF::~FusionEKF() {}
-
 void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
    //  Initialization
    if (!is_initialized_) {
     
     //Initialize the state  with the first measurement.
-    VectorXd x = VectorXd(4);
-    MatrixXd P = MatrixXd(4, 4);
     float px = 0, py = 0, vx = 0, vy = 0;
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
       // Convert radar from polar to cartesian coordinates and initialize state.
@@ -56,13 +29,15 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       py = measurement_pack.raw_measurements_(1);
     }
 
+    VectorXd x = VectorXd(4);
+    MatrixXd P = MatrixXd(4, 4);
     x << px, py, vx, vy;
     P << 1, 0, 0, 0,
          0, 1, 0, 0,
          0, 0, 1000, 0,
          0, 0, 0, 1000;
     
-    ekf_.Init(x, P, lidar_H_, lidar_R_, radar_R_);
+    ekf_.Init(x, P);
     previous_timestamp_ = measurement_pack.timestamp_; 
     is_initialized_ = true;
     return;
